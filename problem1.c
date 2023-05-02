@@ -1,6 +1,6 @@
 /* 
  * File:   problem1.c
- * Author: Ryan Copeland
+ * Authors: Ryan Copeland
  *
  * Created on May 2, 2023, 5:25 PM
  */
