@@ -1,38 +1,31 @@
 /**
  *******************************************************************
- * Lesson 5 - "Variable Speed Rotate"
+ *  Lesson 5 - "Variable Speed Rotate"
  *
- * This lesson combines all of the previous lessons to produce a variable speed rotating
- * LED display that is proportional to the ADC value. The ADC value and LED rotate
- * speed are inversely proportional to each other.
+ *  This lesson combines all of the previous lessons to produce a variable speed rotating
+ *  LED display that is proportional to the ADC value. The ADC value and LED rotate
+ *  speed are inversely proportional to each other.
  *
- * Rotate the POT counterclockwise to see the LEDs shift faster.
+ *  Rotate the POT counterclockwise to see the LEDs shift faster.
  *
- * PIC: 18F14K22
- * Compiler: XC8 v1.00
- * IDE: MPLABX v1.10
+ *  PIC: 16F1829
+ *  Compiler: XC8 v1.00
+ *  IDE: MPLABX v1.10
  *
- * Board: PICkit 3 Low Pin Count Demo Board
- * Date: 6.1.2012
+ *  Board: PICkit 3 Low Pin Count Demo Board
+ *  Date: 6.1.2012
  *
  * *******************************************************************
  * See Low Pin Count Demo Board User's Guide for Lesson Information*
  * ******************************************************************
  */
 
-#include <htc.h>                        //PIC hardware mapping
-#define _XTAL_FREQ 500000               //Used by the compiler for the delay_ms(x) macro
+#include <htc.h>                                        //PIC hardware mapping
+#define _XTAL_FREQ 500000                               //Used by the XC8 delay_ms(x) macro
 
-//config bits that are part-specific for the PIC18F14K22
-__CONFIG(1, FOSC_IRC & PLLEN_OFF & FCMEN_OFF);
-__CONFIG(2, PWRTEN_OFF & BOREN_OFF & WDTEN_OFF);
-__CONFIG(3, HFOFST_OFF & MCLRE_OFF);
-__CONFIG(4, STVREN_ON & LVP_OFF & DEBUG_ON);
-__CONFIG(5, CP0_OFF & CP1_OFF & CPB_OFF & CPD_OFF);
-__CONFIG(6, WRT0_OFF & WRT1_OFF & WRTC_OFF & WRTB_OFF & WRTD_OFF);
-__CONFIG(7, EBTR0_OFF & EBTR1_OFF & EBTRB_OFF);
-
-unsigned char adc(void); //prototype
+//config bits that are part-specific for the PIC16F1829
+__CONFIG(FOSC_INTOSC & WDTE_OFF & PWRTE_OFF & MCLRE_OFF & CP_OFF & CPD_OFF & BOREN_ON & CLKOUTEN_OFF & IESO_OFF & FCMEN_OFF);
+__CONFIG(WRT_OFF & PLLEN_OFF & STVREN_OFF & LVP_OFF);
 
     /* -------------------LATC-----------------
      * Bit#:  -7---6---5---4---3---2---1---0---
@@ -40,73 +33,75 @@ unsigned char adc(void); //prototype
      *-----------------------------------------
      */
 
+unsigned char adc(void);                                //prototype
+
 void main(void) {
-    unsigned char delay;                 //8 bit variable to hold ADC value (top 8 bits...forget the rest)
+    unsigned char delay;
 
-    OSCCON = 0b00100010;                 //500KHz clock speed
-    TRISC = 0;                           //all LED pins are outputs
-    LATC = 0b0001000;                    //start with DS4 lit by setting bit 3 HIGH in LATC
-    TRISAbits.TRISA4 = 1;
-    ANSELbits.ANS3 = 1; //configure AN3 as analog input
-    ADCON0 = 0b00001101; //select AN3 as source of ADC, and enable the module
-    ADCON1 = 0b00010000; //configure left justified result, and select VSS and VDD as references
-    ADCON2 = 0b00000100; //select FOSC/32 speed
-    ADFM = 1; //configure the result to be read from ADRESH only
-    TRISAbits.TRISA5 = 1; //configure RA5 as input for switch
-    OPTION_REGbits.nWPUEN = 0; //enable internal pull-ups
-    WPUAbits.WPUA5 = 1; //enable pull-up for RA5
 
-   while (1) {
-    if (!PORTAbits.RA5) { //if switch is pressed
-        while (!PORTAbits.RA5) continue; //wait for switch release
-        __delay_ms(100); //add debounce delay
-        while (1) { //pause loop
-            if (!PORTAbits.RA5) { //if switch is pressed again
-                while (!PORTAbits.RA5) continue; //wait for switch release
-                __delay_ms(100); //add debounce delay
-                break; //break out of pause loop
+    OSCCON = 0b00111000;                                //500KHz clock speed
+    TRISC = 0;                                          //all LED pins are outputs
+    LATC = 0;
+    LATCbits.LATC3 = 1;                                 //start sequence with DS4 lit
+
+                                                        //setup ADC
+    TRISAbits.TRISA4 = 1;                               //Potentiamtor is connected to RA4...set as input
+    ANSELAbits.ANSA4 = 1;                               //analog
+    ADCON0 = 0b00001101;                                //select RA4 as source of ADC and enable the module (AN3)
+    ADCON1 = 0b00010000;                                //left justified - FOSC/8 speed - Vref is Vdd
+
+
+//setup switch
+    TRISBbits.TRISB0 = 1;                               //set switch as input
+    OPTION_REGbits.nWPUEN = 0;                          //enable pull-up on PORTB
+    WPUBbits.WPUB0 = 1;                                 //enable pull-up on RB0
+
+    while (1) {
+        // check switch
+        if (paused == 0 && !PORTBbits.RB0) {
+            // switch is pressed, pause rotation
+            paused = 1;
+            continue;
+        } else if (paused == 1 && PORTBbits.RB0) {
+            // switch is released, resume rotation
+            paused = 0;
+        }
+
+        // read ADC value
+        unsigned char adc_value = adc();
+
+        // calculate delay based on ADC value
+        delay = (unsigned char) (adc_value / 4);
+
+        if (delay == 0) {
+        if (PORTAbits.RA4 < 510) { // if the ADC value is less than 510, rotate left
+            if (LATCbits.LATC0 == 0) { // if the leftmost LED is already lit, wrap around to the rightmost LED
+                LATC = 0b10000000;
+            }
+            else {
+                LATC <<= 1; // shift to the left to light up the next LED
             }
         }
-    } else { //if switch is not pressed
-        unsigned char delay = adc() >> 1; //read ADC value and divide by 2
-        __delay_ms(5); //delay for at least 5ms
-        while (delay-- != 0){ //for each value of the ADC value, delay 2ms
-            __delay_ms(2);
+        else if (PORTAbits.RA4 > 514) { // if the ADC value is greater than 514, rotate right
+            if (LATCbits.LATC3 == 0) { // if the rightmost LED is already lit, wrap around to the leftmost LED
+                LATC = 0b00001000;
+            }
+            else {
+                LATC >>= 1; // shift to the right to light up the next LED
+            }
         }
-        if (PORTAbits.RA4) { //if potentiometer arrow points right
-            LATC << = 1; //shift to the left by 1
-            if (LATC == 0) //when the first LED is lit, restart the pattern
-                LATCbits.LATC0 = 1;
-        } else if (PORTAbits.RA3) { //if potentiometer arrow points left
-            LATC >> = 1; //shift to the right by 1
-            if (STATUSbits.C) //when the last LED is lit, restart the pattern
-                LATCbits.LATC3 = 1;
-        }
-    }
+        // wait for the switch to be released
+        while (PORTAbits.RA5 == 0) continue;
+        // delay for 100ms to debounce the switch
+        __delay_ms(100);
 }
-
+}
 
 unsigned char adc(void) {
-    __delay_us(5);                      //wait for ADC charging cap to settle
+    __delay_us(5);                                      //wait for ADC charging cap to settle
     GO = 1;
-    while (GO) continue;                //wait for conversion to be finished
-    return ADRESH;
+    while (GO) continue;                                //wait for conversion to be finished
+
+    return ADRESH;                                      //grab the top 8 MSbs
+
 }
-
-
-/* 
- * File:   problem1.c
- * Authors: Ryan Copeland
- *
- * Created on May 2, 2023, 5:25 PM
- */
-
-/*#include <stdio.h>
-#include <stdlib.h>
-
-
-int main(int argc, char** argv) {
-
-    return (EXIT_SUCCESS);
-}
-*/
