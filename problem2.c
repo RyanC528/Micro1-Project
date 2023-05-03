@@ -58,34 +58,34 @@ void main(void) {
         if (count == 5) {
             LATC = 0; //0101
             }
-        if (count = 6) {
+        if (count == 6) {
             LATC = 0; //0110
             }
-        if (count = 7) {
+        if (count == 7) {
             LATC = 0; //0111
             }
-        if (count = 8) {
+        if (count == 8) {
             LATC = 0; //1000
             }
-        if (count = 9) {
+        if (count == 9) {
             LATC = 0; //01001
             }
-        if (count = 10) {
+        if (count == 10) {
             LATC = 0; //1010
             }
-        if (count = 11) {
+        if (count == 11) {
             LATC = 0; //1011
             }
-        if (count = 12) {
+        if (count == 12) {
             LATC = 0; //1100
             }
-        if (count = 13) {
+        if (count == 13) {
             LATC = 0; //1101
             }
-        if (count = 14) {
+        if (count == 14) {
             LATC = 0; //1110
             }
-        if (count = 15) {
+        if (count == 15) {
             LATC = 0; //1111
             }
         if(count >= 16) {
