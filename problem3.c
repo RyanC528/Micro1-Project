@@ -50,50 +50,32 @@ void main(void) {
     ADCON0 = 0b00001101;                                //select RA4 as source of ADC and enable the module (AN3)
     ADCON1 = 0b00010000;                                //left justified - FOSC/8 speed - Vref is Vdd
 
-
-//setup switch
-    TRISBbits.TRISB0 = 1;                               //set switch as input
-    OPTION_REGbits.nWPUEN = 0;                          //enable pull-up on PORTB
-    WPUBbits.WPUB0 = 1;                                 //enable pull-up on RB0
-
     while (1) {
-        // check switch
-        if (paused == 0 && !PORTBbits.RB0) {
-            // switch is pressed, pause rotation
-            paused = 1;
-            continue;
-        } else if (paused == 1 && PORTBbits.RB0) {
-            // switch is released, resume rotation
-            paused = 0;
-        }
-
-        // read ADC value
-        unsigned char adc_value = adc();
-
-        // calculate delay based on ADC value
-        delay = (unsigned char) (adc_value / 4);
-
-        if (delay == 0) {
-        if (PORTAbits.RA4 < 510) { // if the ADC value is less than 510, rotate left
-            if (LATCbits.LATC0 == 0) { // if the leftmost LED is already lit, wrap around to the rightmost LED
-                LATC = 0b10000000;
-            }
-            else {
-                LATC <<= 1; // shift to the left to light up the next LED
-            }
-        }
-        else if (PORTAbits.RA4 > 514) { // if the ADC value is greater than 514, rotate right
-            if (LATCbits.LATC3 == 0) { // if the rightmost LED is already lit, wrap around to the leftmost LED
-                LATC = 0b00001000;
-            }
-            else {
-                LATC >>= 1; // shift to the right to light up the next LED
-            }
-        }
-        // wait for the switch to be released
-        while (PORTAbits.RA5 == 0) continue;
-        // delay for 100ms to debounce the switch
-        __delay_ms(100);
+       delay = adc();                                   //grab the top 8 MSbs
+       __delay_ms(5);                                   //delay for AT LEAST 5ms
+       if((delay > 0b01000000) && (delay < 0b1100000 )) {
+                __delay_ms(2);                               //decrement the 8 MSbs of the ADC and dealy 2ms for each   
+       }
+       else if((delay  < 0b0100000)&&( delay > 0b00100000)){
+            __delay_ms(1000);                               //decrement the 8 MSbs of the ADC and dealy 2ms for each
+           LATC >> = 1;                                     //shift to the right by 1 to light up the next LED
+           if(STATUSbits.C)                                 //when the last LED is lit, restart the pattern
+               LATCbits.LATC3 = 1;
+       }
+       else if (delay < 0b00100000){
+           __delay_ms(100);                               //decrement the 8 MSbs of the ADC and dealy 2ms for each
+           LATC >> = 1;                                     //shift to the right by 1 to light up the next LED
+           if(STATUSbits.C)                                 //when the last LED is lit, restart the pattern
+               LATCbits.LATC3 = 1;
+       }
+        else if(delay > 0b11000000){
+            while (delay-- != 0) 
+                __delay_ms(2);                               //decrement the 8 MSbs of the ADC and dealy 2ms for each
+            LATC << = 1;                                     //shift to the right by 1 to light up the next LED
+            if(LATCbits.LATC3 == 1)                                 //when the last LED is lit, restart the pattern
+                LATCbits.LATC0 = 1;
+           
+       }
 }
 }
 
